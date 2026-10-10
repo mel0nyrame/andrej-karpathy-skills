@@ -5,14 +5,14 @@
     "name": "forrestchang"
   },
   "metadata": {
-    "description": "Behavioral guidelines to reduce common LLM coding mistakes, derived from Andrej Karpathy's observations",
+    "description": "General behavioral guidelines for task execution and understandable results, inspired by Andrej Karpathy",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "andrej-karpathy-skills",
       "source": "./",
-      "description": "Behavioral guidelines to reduce common LLM coding mistakes: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution",
+      "description": "General behavioral guidelines for task execution and communication, inspired by Andrej Karpathy: Think Before Acting, Simplicity First, Surgical Changes, Goal-Driven Execution, Make Results Understandable",
       "version": "1.0.0",
       "author": {
         "name": "forrestchang"
@@ -20,6 +20,8 @@
       "keywords": [
         "guidelines",
         "best-practices",
+        "workflow",
+        "communication",
         "coding",
         "karpathy"
       ],

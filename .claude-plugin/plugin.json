@@ -1,11 +1,11 @@
 {
   "name": "andrej-karpathy-skills",
-  "description": "Behavioral guidelines to reduce common LLM coding mistakes, derived from Andrej Karpathy's observations on LLM coding pitfalls",
+  "description": "General behavioral guidelines for task execution and communication, inspired by Andrej Karpathy: Think Before Acting, Simplicity First, Surgical Changes, Goal-Driven Execution, Make Results Understandable",
   "version": "1.0.0",
   "author": {
     "name": "forrestchang"
   },
   "license": "MIT",
-  "keywords": ["guidelines", "best-practices", "coding", "karpathy"],
+  "keywords": ["guidelines", "best-practices", "workflow", "communication", "coding", "karpathy"],
   "skills": ["./skills/karpathy-guidelines"]
 }

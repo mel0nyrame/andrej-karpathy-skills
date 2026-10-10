@@ -25,4 +25,8 @@ If you want the same content as a reusable skill under `~/.cursor/skills`, use [
 
 ## For contributors
 
-When you change the four principles, keep **[`CLAUDE.md`](CLAUDE.md)** and **[`.cursor/rules/karpathy-guidelines.mdc`](.cursor/rules/karpathy-guidelines.mdc)** in sync. If the published skill/plugin text should match, update **[`skills/karpathy-guidelines/SKILL.md`](skills/karpathy-guidelines/SKILL.md)** as well.
+The canonical instruction body is **[`skills/karpathy-guidelines/SKILL.md`](skills/karpathy-guidelines/SKILL.md)**. When changing the five principles, copy its body (without YAML frontmatter) to **[`CLAUDE.md`](CLAUDE.md)** and **[`.cursor/rules/karpathy-guidelines.mdc`](.cursor/rules/karpathy-guidelines.mdc)**. All three bodies must match. Keep the Cursor description aligned with the skill description and preserve `alwaysApply: true`.
+
+Keep the English and Chinese README summaries, examples, and plugin descriptions aligned with the same scope. Coding is one application of the general guidelines; the supported explanatory formats are text, diagrams/images, and interactive HTML.
+
+Verify skill frontmatter, both plugin JSON files, relative documentation links, and instruction-body equality after edits. For changes to behavioral rules, also check realistic general and coding tasks: format selection and verification should fit the task, and simple requests should remain simple. These structural checks do not establish that every model will follow the guidelines.
