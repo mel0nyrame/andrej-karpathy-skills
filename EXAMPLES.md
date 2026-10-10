@@ -1,522 +1,152 @@
 # Examples
 
-Real-world code examples demonstrating the four principles. Each example shows what LLMs commonly do wrong and how to fix it.
+Illustrative tasks showing how the five principles apply to general work and coding. The complete rules are in [SKILL.md](skills/karpathy-guidelines/SKILL.md).
 
----
+## 1. Think Before Acting
 
-## 1. Think Before Coding
+### General task: compare options
 
-### Example 1: Hidden Assumptions
+**Request:** "Compare these three suppliers and recommend one."
 
-**User Request:** "Add a feature to export user data"
+A weak response assumes that lowest price is the only criterion, invents missing reliability data, and gives a confident winner.
 
-**❌ What LLMs Do (Wrong Assumptions)**
+A useful response reads the supplied material, identifies the known costs and service terms, and distinguishes them from missing information. If budget and reliability lead to different recommendations, it explains that tradeoff and asks which constraint matters while completing the factual comparison.
 
-```python
-def export_users(format='json'):
-    """Export all users to a file."""
-    users = User.query.all()
-    
-    if format == 'json':
-        with open('users.json', 'w') as f:
-            json.dump([u.to_dict() for u in users], f)
-    elif format == 'csv':
-        with open('users.csv', 'w') as f:
-            writer = csv.DictWriter(f, fieldnames=['id', 'email', 'name'])
-            writer.writeheader()
-            writer.writerows([u.to_dict() for u in users])
-    
-    return f"Exported {len(users)} users"
-```
+### Coding task: export user data
 
-**Problems:**
-- Assumed it should export ALL users (what about pagination? privacy?)
-- Assumed file location without asking
-- Assumed which fields to include
-- Assumed CSV fieldnames without checking actual data structure
+**Request:** "Add a feature to export user data."
 
-**✅ What Should Happen (Surface Assumptions)**
+A weak implementation silently chooses all users, all fields, two output formats, and a file location.
 
-```
-Before implementing, I need to clarify:
-
-1. **Scope**: Export all users or filtered subset? (privacy implications)
-2. **Format**: You mentioned "export" - did you mean:
-   - Download file in browser?
-   - Background job with email notification?
-   - API endpoint returning data?
-3. **Fields**: Which user fields? (some might be sensitive)
-4. **Volume**: How many users typically? (affects approach)
-
-Simplest approach: Add an API endpoint that returns paginated JSON.
-Would need more info for file-based exports.
-
-What's your preference?
-```
-
-### Example 2: Multiple Interpretations
-
-**User Request:** "Make the search faster"
-
-**❌ What LLMs Do (Pick Silently)**
-
-```python
-# Adds caching, database indexes, and async processing
-# without asking which "faster" matters
-@lru_cache(maxsize=1000)
-async def search(query: str) -> List[Result]:
-    # ... 200 lines of optimization code
-```
-
-**✅ What Should Happen**
-
-```
-"Make the search faster" could mean:
-
-1. **Faster response time** (< 100ms instead of 500ms)
-   - Add database indexes
-   - Cache frequent queries
-   - Estimated effort: 2 hours
-
-2. **Handle more concurrent searches** (throughput)
-   - Add async/await
-   - Connection pooling
-   - Estimated effort: 4 hours
-
-3. **Faster perceived speed** (UX)
-   - Show partial results immediately
-   - Progressive loading
-   - Estimated effort: 3 hours
-
-Current search takes ~500ms for typical queries. 
-Which aspect matters most for your use case?
-```
-
----
+A useful approach inspects existing export patterns and data permissions, then clarifies the remaining choices that affect scope: which users, which fields, and where the export is delivered. It reuses facts already present in the project.
 
 ## 2. Simplicity First
 
-### Example 1: Over-abstraction
+### General task: explain a term
 
-**User Request:** "Add a function to calculate discount"
+**Request:** "What does a dependency mean in a project plan?"
 
-**❌ What LLMs Do (Overengineered)**
+A useful answer gives the meaning and a concrete example:
 
-```python
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Protocol, Union
-from dataclasses import dataclass
+> A dependency means one task needs another task's result before it can proceed. For example, printing invitations depends on approving their text.
 
-class DiscountStrategy(ABC):
-    @abstractmethod
-    def calculate(self, amount: float) -> float:
-        pass
+A scheduling application would add work without helping this request.
 
-class PercentageDiscount(DiscountStrategy):
-    def __init__(self, percentage: float):
-        self.percentage = percentage
-    
-    def calculate(self, amount: float) -> float:
-        return amount * (self.percentage / 100)
+### Coding task: calculate a percentage discount
 
-class FixedDiscount(DiscountStrategy):
-    def __init__(self, fixed_amount: float):
-        self.fixed_amount = fixed_amount
-    
-    def calculate(self, amount: float) -> float:
-        return min(self.fixed_amount, amount)
+**Request:** "Add a function that calculates a percentage discount."
 
-@dataclass
-class DiscountConfig:
-    strategy: DiscountStrategy
-    min_purchase: float = 0.0
-    max_discount: float = float('inf')
-
-class DiscountCalculator:
-    def __init__(self, config: DiscountConfig):
-        self.config = config
-    
-    def apply_discount(self, amount: float) -> float:
-        if amount < self.config.min_purchase:
-            return 0
-        discount = self.config.strategy.calculate(amount)
-        return min(discount, self.config.max_discount)
-
-# Usage requires 30+ lines of setup for a simple calculation
-```
-
-**✅ What Should Happen (Simple)**
+Implement the required calculation directly:
 
 ```python
-def calculate_discount(amount: float, percent: float) -> float:
-    """Calculate discount amount. percent should be 0-100."""
+def calculate_discount(amount, percent):
     return amount * (percent / 100)
-
-# Usage
-discount = calculate_discount(100.0, 10.0)  # $10 off
 ```
 
-**When to add complexity:** Only when you actually need multiple discount types. If that requirement comes later, refactor then.
+Add other discount types, configuration, or strategy classes only when the task calls for them. Follow the project's established input-validation contract.
 
-### Example 2: Speculative Features
+### Disposable artifacts
 
-**User Request:** "Save user preferences to database"
+**Request:** "Help me explore how a changing input affects this process."
 
-**❌ What LLMs Do (Unnecessary Features)**
-
-```python
-class PreferenceManager:
-    def __init__(self, db, cache=None, validator=None):
-        self.db = db
-        self.cache = cache or InMemoryCache()
-        self.validator = validator or DefaultValidator()
-    
-    def save(self, user_id: int, prefs: dict, 
-             merge: bool = True, 
-             validate: bool = True,
-             notify: bool = False) -> bool:
-        """Save preferences with optional merging, validation, and notifications."""
-        
-        if validate:
-            errors = self.validator.validate(prefs)
-            if errors:
-                raise ValidationError(errors)
-        
-        existing = self.get(user_id) if merge else {}
-        
-        if merge:
-            existing.update(prefs)
-            prefs = existing
-        
-        self.db.execute(
-            "UPDATE users SET preferences = ? WHERE id = ?",
-            (json.dumps(prefs), user_id)
-        )
-        
-        if self.cache:
-            self.cache.set(f"prefs:{user_id}", prefs)
-        
-        if notify:
-            self.notify_preference_change(user_id, prefs)
-        
-        return True
-    
-    def notify_preference_change(self, user_id: int, prefs: dict):
-        # Another 30 lines for a feature nobody asked for
-        pass
-```
-
-**✅ What Should Happen (Just What Was Asked)**
-
-```python
-def save_preferences(db, user_id: int, preferences: dict):
-    """Save user preferences to database."""
-    db.execute(
-        "UPDATE users SET preferences = ? WHERE id = ?",
-        (json.dumps(preferences), user_id)
-    )
-```
-
-**Add later if needed:** Caching (when performance matters), validation (when bad data appears), merging (when requirement emerges).
-
----
+An interactive page can be useful even if opened once. Its interactions should answer that question; authentication, a backend, and a reusable component framework need a separate reason.
 
 ## 3. Surgical Changes
 
-### Example 1: Drive-by Refactoring
+### General task: update a document
 
-**User Request:** "Fix the bug where empty emails crash the validator"
+**Request:** "Change the review date and update the references that use it."
 
-**❌ What LLMs Do (Too Much)**
+Update the date and its dependent references. Preserve unrelated wording, section order, and formatting. Mention a relevant inconsistency outside that change rather than rewriting the document incidentally.
 
-```diff
-  def validate_user(user_data):
--     # Check email format
--     if not user_data.get('email'):
-+     """Validate user data."""
-+     email = user_data.get('email', '').strip()
-+     
-+     # Validate email
-+     if not email:
-          raise ValueError("Email required")
--     
--     # Basic email validation
--     if '@' not in user_data['email']:
-+     if '@' not in email or '.' not in email.split('@')[1]:
-          raise ValueError("Invalid email")
-      
--     # Check username
--     if not user_data.get('username'):
-+     # Validate username
-+     username = user_data.get('username', '').strip()
-+     if not username:
-          raise ValueError("Username required")
-+     if len(username) < 3:
-+         raise ValueError("Username too short")
-+     if not username.isalnum():
-+         raise ValueError("Username must be alphanumeric")
-      
-      return True
-```
+### Coding task: whitespace in emails
 
-**Problems:**
-- "Improved" email validation beyond the bug fix
-- Added username validation nobody asked for
-- Changed comments
-- Added docstring
+**Request:** "Treat whitespace-only emails as empty in this validator."
 
-**✅ What Should Happen (Surgical)**
+Assume inspection confirms that the existing contract accepts strings or `None` and requires a nonempty email. Change that check:
 
 ```diff
-  def validate_user(user_data):
-      # Check email format
--     if not user_data.get('email'):
-+     email = user_data.get('email', '')
-+     if not email or not email.strip():
-          raise ValueError("Email required")
-      
-      # Basic email validation
--     if '@' not in user_data['email']:
-+     if '@' not in email:
-          raise ValueError("Invalid email")
-      
-      # Check username
-      if not user_data.get('username'):
-          raise ValueError("Username required")
-      
-      return True
+  email = user_data.get('email')
+- if not email:
++ if not email or not email.strip():
+      raise ValueError('Email required')
 ```
 
-**Only changed:** The specific lines that fix empty email handling.
-
-### Example 2: Style Drift
-
-**User Request:** "Add logging to the upload function"
-
-**❌ What LLMs Do (Reformat Everything)**
-
-```diff
-- def upload_file(file_path, destination):
-+ def upload_file(file_path: str, destination: str) -> bool:
-+     """Upload file to destination with logging."""
-+     logger.info(f"Uploading {file_path} to {destination}")
-+     
-      try:
--         with open(file_path, 'rb') as f:
--             data = f.read()
--         
--         response = requests.post(destination, files={'file': data})
--         
--         if response.status_code == 200:
--             return True
--         else:
--             return False
-+         with open(file_path, "rb") as f:
-+             data = f.read()
-+         response = requests.post(destination, files={"file": data})
-+         success = response.status_code == 200
-+         
-+         if success:
-+             logger.info(f"Upload successful: {file_path}")
-+         else:
-+             logger.error(f"Upload failed: {file_path}, status={response.status_code}")
-+         
-+         return success
-      except Exception as e:
--         print(f"Error: {e}")
-+         logger.exception(f"Upload error for {file_path}: {e}")
-          return False
-```
-
-**Problems:**
-- Changed quote style ('' to "")
-- Added type hints nobody asked for
-- Added docstring
-- Reformatted whitespace
-- Changed boolean return logic
-
-**✅ What Should Happen (Match Existing Style)**
-
-```diff
-+ import logging
-+ 
-+ logger = logging.getLogger(__name__)
-+ 
-  def upload_file(file_path, destination):
-+     logger.info(f'Starting upload: {file_path}')
-      try:
-          with open(file_path, 'rb') as f:
-              data = f.read()
-          
-          response = requests.post(destination, files={'file': data})
-          
-          if response.status_code == 200:
-+             logger.info(f'Upload successful: {file_path}')
-              return True
-          else:
-+             logger.error(f'Upload failed: {file_path}, status={response.status_code}')
-              return False
-      except Exception as e:
--         print(f"Error: {e}")
-+         logger.exception(f'Upload error: {file_path}')
-          return False
-```
-
-**Matched:** Single quotes, no type hints, existing boolean pattern, spacing style.
-
----
+Check the affected behavior. Keep unrelated username validation, naming, and formatting outside the change.
 
 ## 4. Goal-Driven Execution
 
-### Example 1: Vague vs. Verifiable
+### General task: summarize source material
 
-**User Request:** "Fix the authentication system"
+**Request:** "Summarize these reports and explain where they disagree."
 
-**❌ What LLMs Do (Vague Approach)**
+Completion means the main claims trace to the supplied reports, disagreement is identified, and the summary distinguishes reported evidence from interpretation. Verify claims against the sources; disclose missing material that prevents a supported conclusion.
 
-```
-I'll fix the authentication system by:
-1. Reviewing the code
-2. Identifying issues
-3. Making improvements
-4. Testing the changes
+### General task: revise a document
 
-[Proceeds to make changes without clear success criteria]
-```
+**Request:** "Align the onboarding guide with the supplied checklist."
 
-**✅ What Should Happen (Verifiable Goals)**
+Check that each required item is covered, instructions match the checklist, and directly affected references remain correct. Formatting alone does not establish completeness.
 
-```
-To "fix authentication," I need to define success criteria. 
-What specific issue are we solving?
+### Coding task: fix a session bug
 
-If the issue is "users stay logged in after password change":
+**Request:** "Old sessions still work after a password change. Fix that."
 
-Plan:
-1. Write test: Change password → verify old session invalidated
-   Verify: Test fails (reproduces bug)
+Use observable criteria:
 
-2. Implement: Invalidate sessions on password change
-   Verify: Test passes
+1. Reproduce the old session remaining valid after the password changes.
+2. Change the session invalidation behavior.
+3. Verify that the old session is rejected and a valid new login still works.
+4. Run the relevant existing regression checks.
 
-3. Check edge cases: Multiple active sessions, concurrent changes
-   Verify: Additional tests pass
+Explain any check that could not be performed. Do not replace the specific behavior check with a claim that the code merely looks correct.
 
-4. Verify no regression: Existing auth tests still pass
-   Verify: Full test suite green
+## 5. Make Results Understandable
 
-Current test coverage for auth: [shows coverage]
-What's the specific auth issue you're seeing?
-```
+### Clear writing
 
-### Example 2: Multi-Step with Verification
+A dense explanation:
 
-**User Request:** "Add rate limiting to the API"
+> The invocation of the synchronization mechanism facilitates the propagation of modifications contingent upon the availability of connectivity.
 
-**❌ What LLMs Do (All at Once)**
+A clearer explanation:
 
-```python
-# Implements full rate limiting with Redis, multiple strategies,
-# configuration system, and monitoring in one 300-line commit
-# No clear verification steps
-```
+> When a connection is available, synchronization sends the changes.
 
-**✅ What Should Happen (Incremental with Verification)**
+The condition remains explicit. Keep one term for the same concept throughout the explanation. These clarity principles apply in the user's language; the example does not establish full ASD-STE100 compliance.
 
-```
-Plan for rate limiting:
+### Diagrams for relationships
 
-1. Add basic in-memory rate limiting (single endpoint)
-   Verify: 
-   - Test: 100 requests → first 10 succeed, rest get 429
-   - Manual: curl endpoint 11 times, see rate limit error
+**Request:** "Explain why publishing this report depends on several teams."
 
-2. Extract to middleware (apply to all endpoints)
-   Verify:
-   - Test: Rate limits apply to /users and /posts
-   - Existing endpoint tests still pass
+Assume the supplied workflow says that collecting data precedes analysis, and analysis precedes both legal review and chart preparation. Both must finish before publication. Show those relationships directly:
 
-3. Add Redis backend (for multi-server)
-   Verify:
-   - Test: Rate limit persists across app restarts
-   - Test: Two app instances share rate limit counter
-
-4. Add configuration (rates per endpoint)
-   Verify:
-   - Test: /search allows 10/min, /users allows 100/min
-   - Config file parsed correctly
-
-Each step is independently verifiable and deployable.
-Start with step 1?
+```mermaid
+flowchart LR
+    A[Collect data] --> B[Analyze data]
+    B --> C[Legal review]
+    B --> D[Prepare charts]
+    C --> E[Publish report]
+    D --> E
 ```
 
-### Example 3: Test-First Verification
+Explain that publication waits for both branches. Check that the diagram preserves the supplied dependencies.
 
-**User Request:** "The sorting breaks when there are duplicate scores"
+### Interactive HTML for exploration
 
-**❌ What LLMs Do (Fix Without Reproducing)**
+**Request:** "Help me see how repeated reductions affect the remaining amount as I change the rate and number of steps."
 
-```python
-# Immediately changes sort logic without confirming the bug
-def sort_scores(scores):
-    return sorted(scores, key=lambda x: (-x['score'], x['name']))
-```
+A standalone HTML page can let the user change the reduction rate and step count, then inspect the remaining amount and its trajectory. Label the assumptions and units. Check zero reduction, the default scenario, and full reduction, then exercise the controls and confirm that the displayed values match the calculation.
 
-**✅ What Should Happen (Reproduce First)**
+Place the file according to workspace conventions and link it from the response. Keep only interactions that help answer the question. If the environment cannot produce or display the artifact, explain that limitation and offer a supported alternative.
 
-```python
-# 1. First, write a test that reproduces the issue
-def test_sort_with_duplicate_scores():
-    """Test sorting when multiple items have same score."""
-    scores = [
-        {'name': 'Alice', 'score': 100},
-        {'name': 'Bob', 'score': 100},
-        {'name': 'Charlie', 'score': 90},
-    ]
-    
-    result = sort_scores(scores)
-    
-    # The bug: order is non-deterministic for duplicates
-    # Run this test multiple times, it should be consistent
-    assert result[0]['score'] == 100
-    assert result[1]['score'] == 100
-    assert result[2]['score'] == 90
+### Format choice follows the question
 
-# Verify: Run test 10 times → fails with inconsistent ordering
+| User need | Suitable response |
+|-----------|-------------------|
+| Understand a simple term | A short definition and example |
+| Understand relationships or a process | A diagram with the necessary explanation |
+| Explore parameter changes or scenarios | Interactive HTML with checked behavior |
+| Assess completed work | Result, key evidence, material assumptions, and verification as needed |
 
-# 2. Now fix with stable sort
-def sort_scores(scores):
-    """Sort by score descending, then name ascending for ties."""
-    return sorted(scores, key=lambda x: (-x['score'], x['name']))
-
-# Verify: Test passes consistently
-```
-
----
-
-## Anti-Patterns Summary
-
-| Principle | Anti-Pattern | Fix |
-|-----------|-------------|-----|
-| Think Before Coding | Silently assumes file format, fields, scope | List assumptions explicitly, ask for clarification |
-| Simplicity First | Strategy pattern for single discount calculation | One function until complexity is actually needed |
-| Surgical Changes | Reformats quotes, adds type hints while fixing bug | Only change lines that fix the reported issue |
-| Goal-Driven | "I'll review and improve the code" | "Write test for bug X → make it pass → verify no regressions" |
-
-## Key Insight
-
-The "overcomplicated" examples aren't obviously wrong—they follow design patterns and best practices. The problem is **timing**: they add complexity before it's needed, which:
-
-- Makes code harder to understand
-- Introduces more bugs
-- Takes longer to implement
-- Harder to test
-
-The "simple" versions are:
-- Easier to understand
-- Faster to implement
-- Easier to test
-- Can be refactored later when complexity is actually needed
-
-**Good code is code that solves today's problem simply, not tomorrow's problem prematurely.**
+These are decision criteria, not a required progression through formats. A long answer alone does not justify creating a page. The user's requested format takes precedence.
